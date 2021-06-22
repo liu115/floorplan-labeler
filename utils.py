@@ -1,3 +1,4 @@
+import random
 import numpy as np
 from plyfile import PlyData
 from PyQt5.QtGui import QPainter, QColor, QPen
@@ -54,3 +55,27 @@ def rotate_xy(xy, theta):
         [-np.sin(theta), np.cos(theta)]
     ])
     return np.dot(xy, m)
+
+
+def xy_to_uv(xy, center, rotate, trans_x, trans_y, zoom):
+    '''
+        xy: point cloud coordinate (N x 2)
+    '''
+    xy = rotate_xy(xy - center, rotate) + center
+    uv = xy * zoom + np.array([trans_x, trans_y])
+    return uv
+
+
+def uv_to_xy(uv, center, rotate, trans_x, trans_y, zoom):
+    '''
+        uv: coordinate on canvas (N x 2)
+    '''
+    xy = (uv - np.array([trans_x, trans_y])) / zoom
+    xy = rotate_xy(xy - center, -rotate) + center
+    return xy
+
+
+def get_random_color():
+    # color = list(np.random.choice(range(256), size=3))
+    # return color
+    return QColor("#"+''.join([random.choice('0123456789ABCDEF') for j in range(6)]))

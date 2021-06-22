@@ -1,13 +1,13 @@
 import sys
 import numpy as np
 from PyQt5.QtCore import Qt, QBasicTimer, pyqtSignal
-from PyQt5.QtWidgets import QMainWindow, QApplication, QWidget
+from PyQt5.QtWidgets import QMainWindow, QApplication, QPushButton, QWidget
 from PyQt5.QtGui import QPainter, QColor, QPen
-# from PyQt5.QtWidgets import QVBoxLayout, QPushButton, QPushButton
-from components import Canvas, BotPanel, LabelPanel
+from components import Canvas, BotPanel
+from listview import LabelPanel
 from utils import read_ply
-
-
+from utils import xy_to_uv, uv_to_xy
+from utils import get_random_color
 
 
 class MainWindow(QMainWindow):
@@ -18,6 +18,7 @@ class MainWindow(QMainWindow):
     LABELPANEL_HEIGHT = 300
     LABELPANEL_WIDTH = 180
 
+    SAME_CORNER_DIST = 1
 
     def __init__(self):
         super().__init__()
@@ -26,14 +27,23 @@ class MainWindow(QMainWindow):
 
         self.canvas = Canvas(self)
         self.canvas.setGeometry(0, 0, self.CANVAS_WIDTH, self.CANVAS_HEIGHT)
+        self.canvas.sig_label_point[(int, int)].connect(self.add_point)
+        self.canvas.sig_undo_label.connect(self.undo_label)
         
         self.botpanel = BotPanel(self)
         self.botpanel.setGeometry(0, self.CANVAS_HEIGHT+5, self.BOTPANEL_WIDTH, self.BOTPANEL_HEIGHT)
 
         self.labelpanel = LabelPanel(self)
         self.labelpanel.setGeometry(self.CANVAS_WIDTH+5, 0, self.LABELPANEL_WIDTH, self.LABELPANEL_HEIGHT)
+        self.labelpanel.sig_delete_room[str].connect(self.delete_room)
+        
+        self.save_btn = QPushButton('save', self)
+        self.save_btn.move(650, 400)
+        self.save_btn.clicked.connect(self.save_result)
+        
         self.reset_scene()
         self.show()
+        self.setFocus()
 
     def reset_scene(self):
         self.points, self.colors = read_ply('data/test.ply')
@@ -42,8 +52,12 @@ class MainWindow(QMainWindow):
         self.zoom = 0
         self.rotate = 0
 
-        x_min, _, y_min = self.points.min(0)
-        x_max, _, y_max = self.points.max(0)
+        x_min, z_min, y_min = self.points.min(0)
+        x_max, z_max, y_max = self.points.max(0)
+        self.height_1 = (z_max + z_min) / 3
+        self.height_2 = (z_max + z_min) / 3 * 2
+        self.band_1 = 0.1
+        self.band_2 = 0.1
 
         h = self.CANVAS_HEIGHT
         w = self.CANVAS_WIDTH
@@ -55,11 +69,14 @@ class MainWindow(QMainWindow):
         self.trans_x = -x_min * self.zoom
         self.trans_y = -y_min * self.zoom
 
-        self.corner_list = []
-        self.room_list = []
+        self.cur_corners = []
+        self.room_id_base = 0
+        self.room_corner_list = []
+        self.room_color_list = []
+        self.room_id_list = []
         self.x_corners = None
     
-        self.canvas.repaint()
+        self.canvas.update()
 
     def keyPressEvent(self, event):
         key = event.key()
@@ -79,11 +96,14 @@ class MainWindow(QMainWindow):
             self.trans_x += SHIFT_UNIT * self.zoom
         elif key == Qt.Key_Escape:
             self.close()
+        elif key == Qt.Key_Enter:
+            self.setFocus()
+            # TODO: Setup height
         else:
             value_changed = False
         
         if value_changed:
-            self.canvas.repaint()
+            self.canvas.update()
 
     def wheelEvent(self, event):
         d = event.angleDelta()
@@ -91,8 +111,46 @@ class MainWindow(QMainWindow):
             self.zoom *= 0.9
         elif d.y() > 0:
             self.zoom *= (1 / 0.9)
-        self.canvas.repaint()
-        
+        self.canvas.update()
+    
+    def add_point(self, u, v):
+        uv = np.array([u, v])
+        center = np.mean(self.points[:, [0, 2]], axis=0)
+        xy = uv_to_xy(uv, center, self.rotate, self.trans_x, self.trans_y, self.zoom)
+
+        # Add new room label if click previous point and has at least 3 points
+        if (len(self.cur_corners) >= 3
+            and np.sum(np.abs(self.cur_corners[0]-xy)) < self.SAME_CORNER_DIST):
+            self.room_corner_list.append(self.cur_corners)
+
+            color = get_random_color()
+            self.room_color_list.append(color)
+            room_id = f'room {self.room_id_base}'
+            self.room_id_base += 1
+            self.labelpanel.add_label(room_id, color)
+            self.room_id_list.append(room_id)
+            self.cur_corners = []
+        else:
+            self.cur_corners.append(xy)
+        self.canvas.update()
+    
+    def undo_label(self):
+        if len(self.cur_corners) > 0:
+            self.cur_corners.pop()
+            self.canvas.update()
+
+    def delete_room(self, room_id):
+        idx = self.room_id_list.index(room_id)
+        print(room_id, idx)
+        self.room_id_list.pop(idx)
+        self.room_color_list.pop(idx)
+        self.room_corner_list.pop(idx)
+        self.canvas.update()
+        self.labelpanel.update()
+
+    def save_result(self):
+        # TODO
+        print('save all')
 
 def main():
     app = QApplication(sys.argv)
