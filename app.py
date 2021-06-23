@@ -243,6 +243,7 @@ class MainWindow(QMainWindow):
     def prev_scene(self):
         if self.file_idx > 0:
             self.file_idx -= 1
+            self.points, self.colors = read_ply(self.files[self.file_idx])
             self.reset_scene()
         else:
             QMessageBox.about(self, '', 'This is the first scene')
@@ -250,6 +251,7 @@ class MainWindow(QMainWindow):
     def next_scene(self):
         if self.file_idx < len(self.files) - 1:
             self.file_idx += 1
+            self.points, self.colors = read_ply(self.files[self.file_idx])
             self.reset_scene()
         else:
             QMessageBox.about(self, '', 'This is the last scene')
