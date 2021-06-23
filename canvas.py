@@ -56,13 +56,13 @@ class Canvas(QFrame):
 
         # Draw layer 1
         paint_point_style(painter, QColor(0, 255, 0, 127))
-        mask_1 = (z > p.height_1 - p.band_1) & (z <= p.height_1 + p.band_1)
+        mask_1 = (z > p.height_1 - p.thick_1) & (z <= p.height_1 + p.thick_1)
         uv_1 = uv[mask_1, :]
         painter.drawPoints(QPolygonF(convert_qpointf(uv_1)))
 
         # Draw layer 2
         paint_point_style(painter, QColor(255, 0, 0, 127))
-        mask_2 = (z > p.height_2 - p.band_2) & (z <= p.height_2 + p.band_2)
+        mask_2 = (z > p.height_2 - p.thick_2) & (z <= p.height_2 + p.thick_2)
         uv_2 = uv[mask_2, :]
         painter.drawPoints(QPolygonF(convert_qpointf(uv_2)))
 

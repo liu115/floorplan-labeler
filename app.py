@@ -18,6 +18,10 @@ class MainWindow(QMainWindow):
     LABELPANEL_HEIGHT = 300
     LABELPANEL_WIDTH = 180
 
+    INITIAL_THICKNESS = 0.1
+    THINKNESS_ADJUST_SIZE = 0.1
+    HEIGHT_ADJUST_SIZE = 0.1
+
     SAME_CORNER_DIST = 1
 
     def __init__(self):
@@ -32,6 +36,8 @@ class MainWindow(QMainWindow):
         
         self.botpanel = BotPanel(self)
         self.botpanel.setGeometry(0, self.CANVAS_HEIGHT+5, self.BOTPANEL_WIDTH, self.BOTPANEL_HEIGHT)
+        self.botpanel.sig_adjust_height[(int, int)].connect(self.adjust_height)
+        self.botpanel.sig_adjust_thickness[(int, int)].connect(self.adjust_thickness)
 
         self.labelpanel = LabelPanel(self)
         self.labelpanel.setGeometry(self.CANVAS_WIDTH+5, 0, self.LABELPANEL_WIDTH, self.LABELPANEL_HEIGHT)
@@ -45,13 +51,17 @@ class MainWindow(QMainWindow):
         self.mode_btn = QPushButton(f'{self.label_mode}', self)
         self.mode_btn.clicked.connect(self.switch_label_mode)
         self.mode_btn.move(650, 360)
+
+        self.reset_btn = QPushButton('reset all', self)
+        self.reset_btn.clicked.connect(self.reset_scene)
+        self.reset_btn.move(650, 440)
         
+        self.points, self.colors = read_ply('data/test.ply')
         self.reset_scene()
         self.show()
         self.setFocus()
 
     def reset_scene(self):
-        self.points, self.colors = read_ply('data/test.ply')
         self.trans_x = 0
         self.trans_y = 0
         self.zoom = 0
@@ -59,10 +69,11 @@ class MainWindow(QMainWindow):
 
         x_min, z_min, y_min = self.points.min(0)
         x_max, z_max, y_max = self.points.max(0)
+        # Set initial height as one-third
         self.height_1 = (z_max + z_min) / 3
         self.height_2 = (z_max + z_min) / 3 * 2
-        self.band_1 = 0.1
-        self.band_2 = 0.1
+        self.thick_1 = self.INITIAL_THICKNESS
+        self.thick_2 = self.INITIAL_THICKNESS
 
         h = self.CANVAS_HEIGHT
         w = self.CANVAS_WIDTH
@@ -81,7 +92,9 @@ class MainWindow(QMainWindow):
         self.room_id_list = []
         self.axis_corners = []
     
+        self.labelpanel.clear()
         self.canvas.update()
+        self.botpanel.update()
 
     def keyPressEvent(self, event):
         key = event.key()
@@ -109,6 +122,7 @@ class MainWindow(QMainWindow):
         
         if value_changed:
             self.canvas.update()
+            self.labelpanel.update()
 
     def wheelEvent(self, event):
         d = event.angleDelta()
@@ -168,11 +182,31 @@ class MainWindow(QMainWindow):
         self.room_color_list.pop(idx)
         self.room_corner_list.pop(idx)
         self.canvas.update()
-        self.labelpanel.update()
+
+    def adjust_height(self, slice_id, direction):
+        if slice_id == 1:
+            self.height_1 += direction * self.HEIGHT_ADJUST_SIZE
+        elif slice_id == 2:
+            self.height_2 += direction * self.HEIGHT_ADJUST_SIZE
+        self.canvas.update()
+        self.botpanel.update()
+    
+    def adjust_thickness(self, slice_id, direction):
+        if slice_id == 1:
+            self.thick_1 += direction * self.THINKNESS_ADJUST_SIZE
+        elif slice_id == 2:
+            self.thick_2 += direction * self.THINKNESS_ADJUST_SIZE
+        self.canvas.update()
+        self.botpanel.update()
 
     def save_result(self):
         # TODO
         print('save all')
+
+    
+    def read_result(self):
+        # TODO
+        pass
 
 def main():
     app = QApplication(sys.argv)
