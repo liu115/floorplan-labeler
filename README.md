@@ -21,3 +21,6 @@ Currently, it will save result in `.json` with same name as the file in `PLY_DAT
 6. Click `save` button to save result
 7. `P`: previous scene. `N`: next scene
 8. The bottom panel shows the height and thickness for the two slice. Users can adjust the values to view the different slice from the  projection.
+
+## Screenshot
+![](./materials/demo.png)
