@@ -6,6 +6,9 @@ from PyQt5.QtCore import Qt, pyqtSignal, QEvent, QPoint, QPointF
 import numpy as np
 from utils import draw_debug_box, xy_to_uv, uv_to_xy
 
+def paint_text_style(painter, color):
+    pen = QPen(color, 2, Qt.SolidLine)
+    painter.setPen(pen)
 
 def paint_point_style(painter, color):
     pen = QPen(color, 3, Qt.SolidLine)
@@ -47,6 +50,8 @@ class Canvas(QFrame):
         painter.setRenderHint(QPainter.Antialiasing)
         painter.setRenderHint(QPainter.HighQualityAntialiasing)
         p = self.parent()
+        paint_text_style(painter, QColor(0, 0, 0))
+        painter.drawText(20, 20, p.files[p.file_idx])
         
         points = p.points
         xy = points[:, [0, 2]]

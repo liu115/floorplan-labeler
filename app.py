@@ -1,7 +1,9 @@
 import sys
+import json
+import glob
 import numpy as np
 from PyQt5.QtCore import Qt, QBasicTimer, pyqtSignal
-from PyQt5.QtWidgets import QMainWindow, QApplication, QPushButton
+from PyQt5.QtWidgets import QMainWindow, QApplication, QPushButton, QMessageBox
 from canvas import Canvas
 from bottom_panel import BotPanel
 from label_panel import LabelPanel
@@ -24,7 +26,7 @@ class MainWindow(QMainWindow):
 
     SAME_CORNER_DIST = 1
 
-    def __init__(self):
+    def __init__(self, basedir):
         super().__init__()
         self.setGeometry(0, 0, 800, 500)
         self.setWindowTitle('Floorplan Labeler')
@@ -56,12 +58,17 @@ class MainWindow(QMainWindow):
         self.reset_btn.clicked.connect(self.reset_scene)
         self.reset_btn.move(650, 440)
         
-        self.points, self.colors = read_ply('data/test.ply')
+
+        self.files = glob.glob(basedir + '/*.ply')
+        self.files.sort()
+        assert len(self.files) > 0, f'No ply data found in {basedir}'
+        self.file_idx = 0
+        self.points, self.colors = read_ply(self.files[self.file_idx])
         self.reset_scene()
         self.show()
-        self.setFocus()
 
     def reset_scene(self):
+        self.is_dirty = False
         self.trans_x = 0
         self.trans_y = 0
         self.zoom = 0
@@ -101,9 +108,9 @@ class MainWindow(QMainWindow):
         value_changed = True
         SHIFT_UNIT = 0.3
         if key == Qt.Key_Q:
-            self.rotate -= np.pi / 18
+            self.rotate -= np.pi / 36
         elif key == Qt.Key_E:
-            self.rotate += np.pi / 18
+            self.rotate += np.pi / 36
         elif key == Qt.Key_W:
             self.trans_y -= SHIFT_UNIT * self.zoom
         elif key == Qt.Key_S:
@@ -114,9 +121,21 @@ class MainWindow(QMainWindow):
             self.trans_x += SHIFT_UNIT * self.zoom
         elif key == Qt.Key_Escape:
             self.close()
-        elif key == Qt.Key_Enter:
-            self.setFocus()
-            # TODO: Setup height
+        elif key == Qt.Key_N or key == Qt.Key_P:
+            # Next scene
+            if self.is_dirty:
+                ret = QMessageBox.question(self, 'Warning', 'Chaged not saved. Sure?', QMessageBox.Ok | QMessageBox.Cancel, QMessageBox.Cancel)
+                if ret == QMessageBox.Ok:
+                    if key == Qt.Key_N:
+                        self.next_scene()
+                    else:
+                        self.prev_scene()
+
+            else:
+                if key == Qt.Key_N:
+                    self.next_scene()
+                else:
+                    self.prev_scene()
         else:
             value_changed = False
         
@@ -136,7 +155,7 @@ class MainWindow(QMainWindow):
         uv = np.array([u, v])
         center = np.mean(self.points[:, [0, 2]], axis=0)
         xy = uv_to_xy(uv, center, self.rotate, self.trans_x, self.trans_y, self.zoom)
-
+        self.is_dirty = True
         if self.label_mode == 'room':
             # Add new room label if click previous point and has at least 3 points
             if (len(self.cur_corners) >= 3
@@ -200,17 +219,46 @@ class MainWindow(QMainWindow):
         self.botpanel.update()
 
     def save_result(self):
-        # TODO
-        print('save all')
+        file_name = self.files[self.file_idx]
+        file_name = file_name.replace('.ply', '.json')
+        print(f'save at {file_name}')
 
+        def serialize_corners(corners):
+            return [(f'{corner[0]:.4f}', f'{corner[1]:.4f}') for corner in corners]
+            
+        room_corners = [serialize_corners(corners) for corners in self.room_corner_list]
+        axis_corners = serialize_corners(self.axis_corners)
+
+        with open(file_name, 'w') as f:
+            json.dump({
+                'room_corners': room_corners,
+                'axis_corners': axis_corners,
+            }, f)
+        self.is_dirty = False
     
     def read_result(self):
         # TODO
         pass
 
+    def prev_scene(self):
+        if self.file_idx > 0:
+            self.file_idx -= 1
+            self.reset_scene()
+        else:
+            QMessageBox.about(self, '', 'This is the first scene')
+    
+    def next_scene(self):
+        if self.file_idx < len(self.files) - 1:
+            self.file_idx += 1
+            self.reset_scene()
+        else:
+            QMessageBox.about(self, '', 'This is the last scene')
+            
+
 def main():
+    print(sys.argv)
     app = QApplication(sys.argv)
-    w = MainWindow()
+    w = MainWindow(basedir=sys.argv[1])
     sys.exit(app.exec_())
 
 
