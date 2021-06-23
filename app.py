@@ -1,8 +1,7 @@
 import sys
 import numpy as np
 from PyQt5.QtCore import Qt, QBasicTimer, pyqtSignal
-from PyQt5.QtWidgets import QMainWindow, QApplication, QPushButton, QWidget
-from PyQt5.QtGui import QPainter, QColor, QPen
+from PyQt5.QtWidgets import QMainWindow, QApplication, QPushButton
 from components import Canvas, BotPanel
 from listview import LabelPanel
 from utils import read_ply
@@ -40,6 +39,11 @@ class MainWindow(QMainWindow):
         self.save_btn = QPushButton('save', self)
         self.save_btn.move(650, 400)
         self.save_btn.clicked.connect(self.save_result)
+
+        self.label_mode = 'room'        # or 'axis'
+        self.mode_btn = QPushButton(f'{self.label_mode}', self)
+        self.mode_btn.clicked.connect(self.switch_label_mode)
+        self.mode_btn.move(650, 360)
         
         self.reset_scene()
         self.show()
@@ -74,7 +78,7 @@ class MainWindow(QMainWindow):
         self.room_corner_list = []
         self.room_color_list = []
         self.room_id_list = []
-        self.x_corners = None
+        self.axis_corners = []
     
         self.canvas.update()
 
@@ -118,22 +122,39 @@ class MainWindow(QMainWindow):
         center = np.mean(self.points[:, [0, 2]], axis=0)
         xy = uv_to_xy(uv, center, self.rotate, self.trans_x, self.trans_y, self.zoom)
 
-        # Add new room label if click previous point and has at least 3 points
-        if (len(self.cur_corners) >= 3
-            and np.sum(np.abs(self.cur_corners[0]-xy)) < self.SAME_CORNER_DIST):
-            self.room_corner_list.append(self.cur_corners)
+        if self.label_mode == 'room':
+            # Add new room label if click previous point and has at least 3 points
+            if (len(self.cur_corners) >= 3
+                and np.sum(np.abs(self.cur_corners[0]-xy)) < self.SAME_CORNER_DIST):
+                self.room_corner_list.append(self.cur_corners)
 
-            color = get_random_color()
-            self.room_color_list.append(color)
-            room_id = f'room {self.room_id_base}'
-            self.room_id_base += 1
-            self.labelpanel.add_label(room_id, color)
-            self.room_id_list.append(room_id)
-            self.cur_corners = []
-        else:
+                color = get_random_color()
+                self.room_color_list.append(color)
+                room_id = f'room {self.room_id_base}'
+                self.room_id_base += 1
+                self.labelpanel.add_label(room_id, color)
+                self.room_id_list.append(room_id)
+                self.cur_corners = []
+            else:
+                self.cur_corners.append(xy)
+        elif self.label_mode == 'axis':
             self.cur_corners.append(xy)
+            if len(self.cur_corners) == 2:
+                self.axis_corners = self.cur_corners
+                self.cur_corners = []
+
         self.canvas.update()
-    
+
+    def switch_label_mode(self):
+        if self.label_mode == 'axis':
+            self.label_mode = 'room'
+        elif self.label_mode == 'room':
+            self.label_mode = 'axis'
+        # Clear current corners
+        self.mode_btn.setText(f'{self.label_mode}')
+        self.cur_corners = []
+        self.canvas.update()
+
     def undo_label(self):
         if len(self.cur_corners) > 0:
             self.cur_corners.pop()

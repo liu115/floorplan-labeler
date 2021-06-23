@@ -90,6 +90,18 @@ class Canvas(QFrame):
             paint_corner_style(painter, color)
             painter.drawPoints(QPolygonF(convert_qpointf(uv_corners)))
 
+        # Dras axis 
+        if len(p.axis_corners) == 2:
+            axis_corners = np.stack(p.axis_corners)
+            uv_corners = xy_to_uv(axis_corners, center, p.rotate, p.trans_x, p.trans_y, p.zoom)
+            paint_corner_style(painter, QColor(0, 255, 255, 255))
+            point1 = QPointF(uv_corners[0, 0], uv_corners[0, 1])
+            painter.drawPoint(point1)
+            point2 = QPointF(uv_corners[1, 0], uv_corners[1, 1])
+            painter.drawPoint(point2)
+            paint_edge_style(painter, QColor(0, 255, 255, 255))
+            painter.drawLine(point1, point2)
+
     def clear(self):
         painter = QPainter(self)
         brush = QBrush(Qt.white)
@@ -99,11 +111,8 @@ class Canvas(QFrame):
         painter.drawRect(0, 0, width, height)
 
     def mousePressEvent(self, event):
-        # TODO: Click -> start labeling
         if not self.hasFocus():
-            print('focus')
             self.setFocus()
-            return
         
         x, y = event.x(), event.y()
         # if not self.is_labeling:
