@@ -2,8 +2,9 @@ import sys
 import numpy as np
 from PyQt5.QtCore import Qt, QBasicTimer, pyqtSignal
 from PyQt5.QtWidgets import QMainWindow, QApplication, QPushButton
-from components import Canvas, BotPanel
-from listview import LabelPanel
+from canvas import Canvas
+from bottom_panel import BotPanel
+from label_panel import LabelPanel
 from utils import read_ply
 from utils import xy_to_uv, uv_to_xy
 from utils import get_random_color

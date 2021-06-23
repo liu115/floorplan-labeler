@@ -122,37 +122,3 @@ class Canvas(QFrame):
         elif event.button() == Qt.RightButton:
             self.sig_undo_label.emit()
             
-
-
-class BotPanel(QFrame):
-
-    def __init__(self, parent):
-        super().__init__(parent)
-
-        grid = QGridLayout()
-        grid.setSpacing(10)
-        # label_1 = QLabel(f'height 1')
-
-        # height_1 = QLineEdit(acceptableInput=QString('D'))
-        # band_1 = InputNumFields()
-
-        # label_2 = QLabel(f'height 2')
-        # height_2 = InputNumFields()
-        # # height_2.editingFinished.connect(lambda: self.parent().setFocus())
-        # band_2 = InputNumFields()
-        # grid.addWidget(label_1, 1, 0)
-        # grid.addWidget(height_1, 1, 1)
-        # grid.addWidget(band_1, 1, 2)
-
-        # grid.addWidget(label_2, 2, 0)
-        # grid.addWidget(height_2, 2, 1)
-        # grid.addWidget(band_2, 2, 2)
-
-        # self.setLayout(grid)
-
-    
-    def paintEvent(self, event):
-        draw_debug_box(self, diag=False)
-
-    def mousePressEvent(self, event):
-        print(event.x(), event.y())
