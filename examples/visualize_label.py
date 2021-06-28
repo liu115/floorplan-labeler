@@ -25,24 +25,25 @@ def norm(x):
 def visualize(label_fn, axis_align=False, grid_size=256):
     room_corners, axis_corners = read_json_label(label_fn)
     if axis_align:
-        # TODO: Contraint the vector v to have positive slope
-        v = axis_corners[0, :] - axis_corners[1, :]
-        cosx = (v / norm(v))[0]
-        sinx = np.sqrt(1 - cosx*cosx)
-        m = np.array([
-            [cosx, -sinx],
-            [sinx, cosx],
-        ])
+        x, y = axis_corners[1, :] - axis_corners[0, :]
+        yaw_angle = np.arctan(y / x)
+        yaw_2d = np.array([
+            np.cos(yaw_angle), -np.sin(yaw_angle),
+            np.sin(yaw_angle),
+            np.cos(yaw_angle)
+        ]).reshape(2, 2)
         for i in range(len(room_corners)):
-            room_corners[i] = np.dot(room_corners[i], m)
+            room_corners[i] = np.dot(room_corners[i], yaw_2d)
     
     all_corners = np.concatenate(room_corners, axis=0)
-    scale = grid_size / np.max(all_corners.max(0)- all_corners.min(0)) * 0.9
+    max_edge = np.max(all_corners.max(0)- all_corners.min(0))
+    scale = grid_size / max_edge * 0.8
     trans = -all_corners.min(0)
+    pad = grid_size * 0.1
 
     image = np.zeros((grid_size, grid_size), np.uint8)
     for room_idx, corners in enumerate(room_corners):
-        corners = (corners + trans) * scale
+        corners = (corners + trans) * scale + pad
         for i in range(corners.shape[0]):
             j = (i+1) % corners.shape[0]
             x1, y1 = round(corners[i, 0]), round(corners[i, 1])
