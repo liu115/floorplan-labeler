@@ -1,26 +1,31 @@
-from PyQt5.QtWidgets import QFrame, QWidget, QVBoxLayout, QLabel, QLineEdit, QGridLayout, QSpinBox
-from PyQt5.QtWidgets import QListView
-from PyQt5.QtGui import QPolygon, QStandardItem, QPolygonF
+from PyQt5.QtWidgets import QFrame
+from PyQt5.QtGui import QPolygonF
 from PyQt5.QtGui import QBrush, QPainter, QColor, QPen
-from PyQt5.QtCore import Qt, pyqtSignal, QEvent, QPoint, QPointF
+from PyQt5.QtCore import Qt, pyqtSignal, QPointF
 import numpy as np
-from utils import draw_debug_box, xy_to_uv, uv_to_xy
+
+from utils import xy_to_uv
+
 
 def paint_text_style(painter, color):
     pen = QPen(color, 2, Qt.SolidLine)
     painter.setPen(pen)
 
+
 def paint_point_style(painter, color):
     pen = QPen(color, 3, Qt.SolidLine)
     painter.setPen(pen)
+
 
 def paint_corner_style(painter, color):
     pen = QPen(color, 10, Qt.SolidLine)
     painter.setPen(pen)
 
+
 def paint_edge_style(painter, color):
     pen = QPen(color, 3, Qt.DotLine)
     painter.setPen(pen)
+
 
 def paint_room_style(painter, color):
     pen = QPen(color, 3, Qt.DotLine)
@@ -29,6 +34,7 @@ def paint_room_style(painter, color):
     brush = QBrush(color)
     painter.setPen(pen)
     painter.setBrush(brush)
+
 
 def convert_qpointf(xy):
     points = []
@@ -52,7 +58,7 @@ class Canvas(QFrame):
         p = self.parent()
         paint_text_style(painter, QColor(0, 0, 0))
         painter.drawText(20, 20, p.files[p.file_idx])
-        
+
         points = p.points
         xy = points[:, [0, 2]]
         z = points[:, 1]
@@ -95,7 +101,7 @@ class Canvas(QFrame):
             paint_corner_style(painter, color)
             painter.drawPoints(QPolygonF(convert_qpointf(uv_corners)))
 
-        # Dras axis 
+        # Dras axis
         if len(p.axis_corners) == 2:
             axis_corners = np.stack(p.axis_corners)
             uv_corners = xy_to_uv(axis_corners, center, p.rotate, p.trans_x, p.trans_y, p.zoom)
@@ -118,7 +124,7 @@ class Canvas(QFrame):
     def mousePressEvent(self, event):
         if not self.hasFocus():
             self.setFocus()
-        
+
         x, y = event.x(), event.y()
         # if not self.is_labeling:
         #     self.is_labeling = True
@@ -126,4 +132,3 @@ class Canvas(QFrame):
             self.sig_label_point.emit(x, y)
         elif event.button() == Qt.RightButton:
             self.sig_undo_label.emit()
-            

@@ -8,10 +8,10 @@
 
 ## How to run and use?
 ```
-python app.py PLY_DATA_DIR
+python app.py PLY_DATA_DIR OUTPUT_DIR
 ```
 This will read all `.ply` files in `PLY_DATA_DIR`.
-Currently, it will save result in `.json` with same name as the file in `PLY_DATA_DIR`.
+Currently, the output annotation will be saved as `[SCENE_NAME].json` in `OUTPUT_DIR` where `SCENE_NAME` is the name of the `.ply` file.
 
 1. Left-click the point cloud to label corners. Right-click undo the labeling
 2. `W`, `A`, `S`, `D` to move point cloud 
@@ -20,7 +20,7 @@ Currently, it will save result in `.json` with same name as the file in `PLY_DAT
 5. Click `room` or `axis` button on bottom right to switch labeling mode
 6. Click `save` button to save result
 7. `P`: previous scene. `N`: next scene
-8. The bottom panel shows the height and thickness for the two slice. Users can adjust the values to view the different slice from the  projection.
+8. The bottom panel shows the height for the two slice. Users can adjust the values to view the different slice from the projection. The thickness for each slice is set as 0.1 as default.
 
 ## Screenshot
 ![](./materials/demo.png)

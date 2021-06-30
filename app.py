@@ -1,14 +1,15 @@
+import os
 import sys
 import json
 import glob
 import numpy as np
-from PyQt5.QtCore import Qt, QBasicTimer, pyqtSignal
+from PyQt5.QtCore import Qt
 from PyQt5.QtWidgets import QMainWindow, QApplication, QPushButton, QMessageBox
 from canvas import Canvas
 from bottom_panel import BotPanel
 from label_panel import LabelPanel
 from utils import read_ply
-from utils import xy_to_uv, uv_to_xy
+from utils import uv_to_xy
 from utils import get_random_color
 
 
@@ -23,10 +24,11 @@ class MainWindow(QMainWindow):
     INITIAL_THICKNESS = 0.1
     THINKNESS_ADJUST_SIZE = 0.1
     HEIGHT_ADJUST_SIZE = 0.1
+    ROTATE_STEP = np.pi / 72
 
     SAME_CORNER_DIST = 1
 
-    def __init__(self, basedir):
+    def __init__(self, basedir, outdir):
         super().__init__()
         self.setGeometry(0, 0, 800, 500)
         self.setWindowTitle('Floorplan Labeler')
@@ -35,16 +37,17 @@ class MainWindow(QMainWindow):
         self.canvas.setGeometry(0, 0, self.CANVAS_WIDTH, self.CANVAS_HEIGHT)
         self.canvas.sig_label_point[(int, int)].connect(self.add_point)
         self.canvas.sig_undo_label.connect(self.undo_label)
-        
+
         self.botpanel = BotPanel(self)
         self.botpanel.setGeometry(0, self.CANVAS_HEIGHT+5, self.BOTPANEL_WIDTH, self.BOTPANEL_HEIGHT)
-        self.botpanel.sig_adjust_height[(int, int)].connect(self.adjust_height)
-        self.botpanel.sig_adjust_thickness[(int, int)].connect(self.adjust_thickness)
+        self.botpanel.sig_set_height_ratio[(int, float)].connect(self.set_height)
+        # self.botpanel.sig_adjust_height[(int, int)].connect(self.adjust_height)
+        # self.botpanel.sig_adjust_thickness[(int, int)].connect(self.adjust_thickness)
 
         self.labelpanel = LabelPanel(self)
         self.labelpanel.setGeometry(self.CANVAS_WIDTH+5, 0, self.LABELPANEL_WIDTH, self.LABELPANEL_HEIGHT)
         self.labelpanel.sig_delete_room[str].connect(self.delete_room)
-        
+
         self.save_btn = QPushButton('save', self)
         self.save_btn.move(650, 400)
         self.save_btn.clicked.connect(self.save_result)
@@ -57,8 +60,9 @@ class MainWindow(QMainWindow):
         self.reset_btn = QPushButton('reset all', self)
         self.reset_btn.clicked.connect(self.reset_scene)
         self.reset_btn.move(650, 440)
-        
 
+        self.basedir = basedir
+        self.outdir = outdir
         self.files = glob.glob(basedir + '/*.ply')
         self.files.sort()
         assert len(self.files) > 0, f'No ply data found in {basedir}'
@@ -77,8 +81,8 @@ class MainWindow(QMainWindow):
         x_min, z_min, y_min = self.points.min(0)
         x_max, z_max, y_max = self.points.max(0)
         # Set initial height as one-third
-        self.height_1 = (z_max + z_min) / 3
-        self.height_2 = (z_max + z_min) / 3 * 2
+        self.height_1 = z_min + (z_max - z_min) / 3
+        self.height_2 = z_min + (z_max - z_min) / 3 * 2
         self.thick_1 = self.INITIAL_THICKNESS
         self.thick_2 = self.INITIAL_THICKNESS
 
@@ -88,7 +92,7 @@ class MainWindow(QMainWindow):
             self.zoom = w / (x_max - x_min)
         else:
             self.zoom = h / (y_max - y_min)
-        
+
         self.trans_x = -x_min * self.zoom
         self.trans_y = -y_min * self.zoom
 
@@ -98,7 +102,7 @@ class MainWindow(QMainWindow):
         self.room_color_list = []
         self.room_id_list = []
         self.axis_corners = []
-    
+
         self.labelpanel.clear()
         self.canvas.update()
         self.botpanel.update()
@@ -108,9 +112,9 @@ class MainWindow(QMainWindow):
         value_changed = True
         SHIFT_UNIT = 0.3
         if key == Qt.Key_Q:
-            self.rotate -= np.pi / 36
+            self.rotate -= self.ROTATE_STEP
         elif key == Qt.Key_E:
-            self.rotate += np.pi / 36
+            self.rotate += self.ROTATE_STEP
         elif key == Qt.Key_W:
             self.trans_y -= SHIFT_UNIT * self.zoom
         elif key == Qt.Key_S:
@@ -138,7 +142,7 @@ class MainWindow(QMainWindow):
                     self.prev_scene()
         else:
             value_changed = False
-        
+
         if value_changed:
             self.canvas.update()
             self.labelpanel.update()
@@ -150,7 +154,7 @@ class MainWindow(QMainWindow):
         elif d.y() > 0:
             self.zoom *= (1 / 0.9)
         self.canvas.update()
-    
+
     def add_point(self, u, v):
         uv = np.array([u, v])
         center = np.mean(self.points[:, [0, 2]], axis=0)
@@ -159,7 +163,7 @@ class MainWindow(QMainWindow):
         if self.label_mode == 'room':
             # Add new room label if click previous point and has at least 3 points
             if (len(self.cur_corners) >= 3
-                and np.sum(np.abs(self.cur_corners[0]-xy)) < self.SAME_CORNER_DIST):
+                    and np.sum(np.abs(self.cur_corners[0]-xy)) < self.SAME_CORNER_DIST):
                 self.room_corner_list.append(self.cur_corners)
 
                 color = get_random_color()
@@ -202,30 +206,26 @@ class MainWindow(QMainWindow):
         self.room_corner_list.pop(idx)
         self.canvas.update()
 
-    def adjust_height(self, slice_id, direction):
+    def set_height(self, slice_id, ratio):
+        x_min, z_min, y_min = self.points.min(0)
+        x_max, z_max, y_max = self.points.max(0)
+
         if slice_id == 1:
-            self.height_1 += direction * self.HEIGHT_ADJUST_SIZE
-        elif slice_id == 2:
-            self.height_2 += direction * self.HEIGHT_ADJUST_SIZE
-        self.canvas.update()
-        self.botpanel.update()
-    
-    def adjust_thickness(self, slice_id, direction):
-        if slice_id == 1:
-            self.thick_1 += direction * self.THINKNESS_ADJUST_SIZE
-        elif slice_id == 2:
-            self.thick_2 += direction * self.THINKNESS_ADJUST_SIZE
+            self.height_1 = z_min + (z_max - z_min) * ratio
+        if slice_id == 2:
+            self.height_2 = z_min + (z_max - z_min) * ratio
         self.canvas.update()
         self.botpanel.update()
 
     def save_result(self):
         file_name = self.files[self.file_idx]
-        file_name = file_name.replace('.ply', '.json')
+        file_name = os.path.basename(file_name).replace('.ply', '.json')
+        file_name = os.path.join(self.outdir, file_name)
         print(f'save at {file_name}')
 
         def serialize_corners(corners):
             return [(f'{corner[0]:.4f}', f'{corner[1]:.4f}') for corner in corners]
-            
+
         room_corners = [serialize_corners(corners) for corners in self.room_corner_list]
         axis_corners = serialize_corners(self.axis_corners)
 
@@ -235,7 +235,7 @@ class MainWindow(QMainWindow):
                 'axis_corners': axis_corners,
             }, f)
         self.is_dirty = False
-    
+
     def read_result(self):
         # TODO
         pass
@@ -247,7 +247,7 @@ class MainWindow(QMainWindow):
             self.reset_scene()
         else:
             QMessageBox.about(self, '', 'This is the first scene')
-    
+
     def next_scene(self):
         if self.file_idx < len(self.files) - 1:
             self.file_idx += 1
@@ -255,14 +255,15 @@ class MainWindow(QMainWindow):
             self.reset_scene()
         else:
             QMessageBox.about(self, '', 'This is the last scene')
-            
+
 
 def main():
     print(sys.argv)
     app = QApplication(sys.argv)
-    w = MainWindow(basedir=sys.argv[1])
+    assert len(sys.argv) == 3, "Usage: python app.py [PLY_DIR] [OUTPUT_DIR]"
+    w = MainWindow(basedir=sys.argv[1], outdir=sys.argv[2])
     sys.exit(app.exec_())
 
 
-if __name__== '__main__':
+if __name__ == '__main__':
     main()

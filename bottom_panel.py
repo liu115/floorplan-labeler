@@ -1,60 +1,54 @@
-from PyQt5.QtGui import QPainter
-from PyQt5.QtWidgets import QHBoxLayout, QPushButton, QWidget, QLabel, QLineEdit, QGridLayout, QSpinBox
+from PyQt5.QtWidgets import QHBoxLayout, QWidget, QLabel, QSlider
 from PyQt5.QtCore import Qt, pyqtSignal
-
-from utils import draw_debug_box
 
 
 class BotPanel(QWidget):
-    sig_adjust_height = pyqtSignal((int, int))
-    sig_adjust_thickness = pyqtSignal((int, int))
+    sig_set_height_ratio = pyqtSignal((int, float))
+    # sig_adjust_height = pyqtSignal((int, int))
+    # sig_adjust_thickness = pyqtSignal((int, int))
 
     def __init__(self, parent):
         super().__init__(parent)
 
-        self.btn_group = QWidget(self)
-        self.btn_group.setGeometry(0, 0, 600, 100)
-        layout = QHBoxLayout(self.btn_group)
+        self.label_group = QWidget(self)
+        self.label_group.setGeometry(0, 0, 600, 50)
+        self.height_sld_group = QWidget(self)
+        self.height_sld_group.setGeometry(0, 0, 600, 100)
 
-        # For slice 1
-        btn_add_height_1 = QPushButton('+ h1')
-        btn_add_height_1.clicked.connect(lambda: self.sig_adjust_height.emit(1, +1))
-        btn_mns_height_1 = QPushButton('- h1')
-        btn_mns_height_1.clicked.connect(lambda: self.sig_adjust_height.emit(1, -1))
-        btn_add_thick_1 = QPushButton('+ t1')
-        btn_add_thick_1.clicked.connect(lambda: self.sig_adjust_thickness.emit(1, +1))
-        btn_mns_thick_1 = QPushButton('- t1')
-        btn_mns_thick_1.clicked.connect(lambda: self.sig_adjust_thickness.emit(1, -1))
-        layout.addWidget(btn_add_height_1)
-        layout.addWidget(btn_mns_height_1)
-        layout.addWidget(btn_add_thick_1)
-        layout.addWidget(btn_mns_thick_1)
+        layout1 = QHBoxLayout(self.label_group)
+        self.label_z_min = QLabel('z_min', self)
+        self.label_height_1 = QLabel('2', self)
+        self.label_height_1.setStyleSheet('color: green')
+        self.label_height_2 = QLabel('3', self)
+        self.label_height_2.setStyleSheet('color: red')
+        self.label_z_max = QLabel('z_max:', self)
+        layout1.addWidget(self.label_z_min)
+        layout1.addWidget(self.label_height_1)
+        layout1.addWidget(self.label_height_2)
+        layout1.addWidget(self.label_z_max)
 
-        # For slice 2
-        btn_add_height_2 = QPushButton('+ h2')
-        btn_add_height_2.clicked.connect(lambda: self.sig_adjust_height.emit(2, +1))
-        btn_mns_height_2 = QPushButton('- h2')
-        btn_mns_height_2.clicked.connect(lambda: self.sig_adjust_height.emit(2, -1))
-        btn_add_thick_2 = QPushButton('+ t2')
-        btn_add_thick_2.clicked.connect(lambda: self.sig_adjust_thickness.emit(2, +1))
-        btn_mns_thick_2 = QPushButton('- t2')
-        btn_mns_thick_2.clicked.connect(lambda: self.sig_adjust_thickness.emit(2, -1))
+        layout2 = QHBoxLayout(self.height_sld_group)
+        self.sld1 = QSlider(Qt.Horizontal, self)
+        self.sld1.valueChanged.connect(lambda x: self.change_height(1, x))
+        self.sld2 = QSlider(Qt.Horizontal, self)
+        self.sld2.valueChanged.connect(lambda x: self.change_height(2, x))
+        layout2.addWidget(self.sld1)
+        layout2.addWidget(self.sld2)
 
-        layout.addWidget(btn_add_height_2)
-        layout.addWidget(btn_mns_height_2)
-        layout.addWidget(btn_add_thick_2)
-        layout.addWidget(btn_mns_thick_2)
+    def change_height(self, h, x):
+        self.sig_set_height_ratio.emit(h, x / 100.0)
 
-    
-    def paintEvent(self, event):
-        draw_debug_box(self, diag=False)
-
-        painter = QPainter(self)
+    def update(self):
+        super().update()
         p = self.parent()
         points = p.points
         x_min, z_min, y_min = points.min(0)
         x_max, z_max, y_max = points.max(0)
 
-        painter.drawText(30, 100, f'z_min: {z_min:.2f}, z_max: {z_max:.2f}')
-        painter.drawText(30, 120, f'Band 1 (green) height: {p.height_1:.2f}, thickness: {p.thick_1:.2f}')
-        painter.drawText(30, 140, f'Band 2 (red) height: {p.height_2:.2f}, thickness: {p.thick_2:.2f}')
+        self.label_z_min.setText(f'z_min:{z_min:.2f}')
+        self.label_z_max.setText(f'z_max:{z_max:.2f}')
+        self.label_height_1.setText(f'{p.height_1:.2f}')
+        self.label_height_2.setText(f'{p.height_2:.2f}')
+
+        self.sld1.setValue((p.height_1 - z_min) / (z_max - z_min) * 100)
+        self.sld2.setValue((p.height_2 - z_min) / (z_max - z_min) * 100)
