@@ -21,7 +21,7 @@ class MainWindow(QMainWindow):
     LABELPANEL_HEIGHT = 300
     LABELPANEL_WIDTH = 180
 
-    INITIAL_THICKNESS = 0.1
+    INITIAL_THICKNESS = 0.2
     THINKNESS_ADJUST_SIZE = 0.1
     HEIGHT_ADJUST_SIZE = 0.1
     ROTATE_STEP = np.pi / 72
@@ -67,11 +67,14 @@ class MainWindow(QMainWindow):
         self.files.sort()
         assert len(self.files) > 0, f'No ply data found in {basedir}'
         self.file_idx = 0
-        self.points, self.colors = read_ply(self.files[self.file_idx])
         self.reset_scene()
         self.show()
 
     def reset_scene(self):
+        # Read file
+        file_name = self.files[self.file_idx]
+        self.points, self.colors = read_ply(file_name)
+
         self.is_dirty = False
         self.trans_x = 0
         self.trans_y = 0
@@ -106,6 +109,13 @@ class MainWindow(QMainWindow):
         self.labelpanel.clear()
         self.canvas.update()
         self.botpanel.update()
+
+        # Read result if the previous saved annotation can be found
+        saved_file_name = os.path.basename(file_name).replace('.ply', '.json')
+        saved_file_name = os.path.join(self.outdir, saved_file_name)
+        if os.path.exists(saved_file_name):
+            print(f'{saved_file_name} found. Load the result.')
+            self.read_result(saved_file_name)
 
     def keyPressEvent(self, event):
         key = event.key()
@@ -155,6 +165,16 @@ class MainWindow(QMainWindow):
             self.zoom *= (1 / 0.9)
         self.canvas.update()
 
+    def add_room(self, room_corners):
+        assert len(room_corners) >= 3
+        self.room_corner_list.append(room_corners)
+        color = get_random_color()
+        self.room_color_list.append(color)
+        room_id = f'room {self.room_id_base}'
+        self.room_id_base += 1
+        self.labelpanel.add_label(room_id, color)
+        self.room_id_list.append(room_id)
+
     def add_point(self, u, v):
         uv = np.array([u, v])
         center = np.mean(self.points[:, [0, 2]], axis=0)
@@ -164,14 +184,7 @@ class MainWindow(QMainWindow):
             # Add new room label if click previous point and has at least 3 points
             if (len(self.cur_corners) >= 3
                     and np.sum(np.abs(self.cur_corners[0]-xy)) < self.SAME_CORNER_DIST):
-                self.room_corner_list.append(self.cur_corners)
-
-                color = get_random_color()
-                self.room_color_list.append(color)
-                room_id = f'room {self.room_id_base}'
-                self.room_id_base += 1
-                self.labelpanel.add_label(room_id, color)
-                self.room_id_list.append(room_id)
+                self.add_room(self.cur_corners)
                 self.cur_corners = []
             else:
                 self.cur_corners.append(xy)
@@ -236,9 +249,20 @@ class MainWindow(QMainWindow):
             }, f)
         self.is_dirty = False
 
-    def read_result(self):
-        # TODO
-        pass
+    def read_result(self, fn):
+        with open(fn, 'r') as f:
+            d = json.load(f)
+
+        room_list = d['room_corners']
+        for room_corners in room_list:
+            room_corners = [np.array([float(x[0]), float(x[1])]) for x in room_corners]
+            self.add_room(room_corners)
+
+        axis_corners = d['axis_corners']
+        axis_corners = [np.array([float(x[0]), float(x[1])]) for x in axis_corners]
+        assert len(axis_corners) == 2
+        self.axis_corners = axis_corners
+        self.canvas.update()
 
     def prev_scene(self):
         if self.file_idx > 0:
