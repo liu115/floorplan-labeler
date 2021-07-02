@@ -25,6 +25,8 @@ class MainWindow(QMainWindow):
     THINKNESS_ADJUST_SIZE = 0.1
     HEIGHT_ADJUST_SIZE = 0.1
     ROTATE_STEP = np.pi / 72
+    DEFAULT_CANVAS_MODE = 'DENSITY'
+    DEFAULT_DENSITY_SCALE = 10
 
     SAME_CORNER_DIST = 1
 
@@ -41,6 +43,8 @@ class MainWindow(QMainWindow):
         self.botpanel = BotPanel(self)
         self.botpanel.setGeometry(0, self.CANVAS_HEIGHT+5, self.BOTPANEL_WIDTH, self.BOTPANEL_HEIGHT)
         self.botpanel.sig_set_height_ratio[(int, float)].connect(self.set_height)
+        self.density_scale = self.DEFAULT_DENSITY_SCALE
+        self.botpanel.sig_set_density_scale[int].connect(self.set_density_scale)
         # self.botpanel.sig_adjust_height[(int, int)].connect(self.adjust_height)
         # self.botpanel.sig_adjust_thickness[(int, int)].connect(self.adjust_thickness)
 
@@ -48,14 +52,19 @@ class MainWindow(QMainWindow):
         self.labelpanel.setGeometry(self.CANVAS_WIDTH+5, 0, self.LABELPANEL_WIDTH, self.LABELPANEL_HEIGHT)
         self.labelpanel.sig_delete_room[str].connect(self.delete_room)
 
+        self.canvas_mode = self.DEFAULT_CANVAS_MODE
+        self.canvas_mode_btn = QPushButton(f'mod: {self.canvas_mode}', self)
+        self.canvas_mode_btn.clicked.connect(self.toggle_canvas_mode)
+        self.canvas_mode_btn.move(650, 320)
+
+        self.label_mode = 'room'        # or 'axis'
+        self.label_mode_btn = QPushButton(f'mod: {self.label_mode}', self)
+        self.label_mode_btn.clicked.connect(self.toggle_label_mode)
+        self.label_mode_btn.move(650, 360)
+
         self.save_btn = QPushButton('save', self)
         self.save_btn.move(650, 400)
         self.save_btn.clicked.connect(self.save_result)
-
-        self.label_mode = 'room'        # or 'axis'
-        self.mode_btn = QPushButton(f'{self.label_mode}', self)
-        self.mode_btn.clicked.connect(self.switch_label_mode)
-        self.mode_btn.move(650, 360)
 
         self.reset_btn = QPushButton('reset all', self)
         self.reset_btn.clicked.connect(self.reset_scene)
@@ -196,14 +205,23 @@ class MainWindow(QMainWindow):
 
         self.canvas.update()
 
-    def switch_label_mode(self):
+    def toggle_label_mode(self):
         if self.label_mode == 'axis':
             self.label_mode = 'room'
         elif self.label_mode == 'room':
             self.label_mode = 'axis'
         # Clear current corners
-        self.mode_btn.setText(f'{self.label_mode}')
+        self.label_mode_btn.setText(f'mod: {self.label_mode}')
         self.cur_corners = []
+        self.canvas.update()
+
+    def toggle_canvas_mode(self):
+        if self.canvas_mode == 'DENSITY':
+            self.canvas_mode = 'SLICE'
+        elif self.canvas_mode == 'SLICE':
+            self.canvas_mode = 'DENSITY'
+        # Clear current corners
+        self.canvas_mode_btn.setText(f'mod: {self.canvas_mode}')
         self.canvas.update()
 
     def undo_label(self):
@@ -227,6 +245,11 @@ class MainWindow(QMainWindow):
             self.height_1 = z_min + (z_max - z_min) * ratio
         if slice_id == 2:
             self.height_2 = z_min + (z_max - z_min) * ratio
+        self.canvas.update()
+        self.botpanel.update()
+
+    def set_density_scale(self, scale):
+        self.density_scale = scale
         self.canvas.update()
         self.botpanel.update()
 

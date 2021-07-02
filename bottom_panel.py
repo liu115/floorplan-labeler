@@ -4,6 +4,7 @@ from PyQt5.QtCore import Qt, pyqtSignal
 
 class BotPanel(QWidget):
     sig_set_height_ratio = pyqtSignal((int, float))
+    sig_set_density_scale = pyqtSignal(int)
     # sig_adjust_height = pyqtSignal((int, int))
     # sig_adjust_thickness = pyqtSignal((int, int))
 
@@ -14,6 +15,12 @@ class BotPanel(QWidget):
         self.label_group.setGeometry(0, 0, 600, 50)
         self.height_sld_group = QWidget(self)
         self.height_sld_group.setGeometry(0, 0, 600, 100)
+
+        self.density_label = QLabel('density scale:', self)
+        self.density_label.move(10, 150)
+        self.density_sld = QSlider(Qt.Horizontal, self)
+        self.density_sld.move(120, 150)
+        self.density_sld.valueChanged.connect(lambda x: self.sig_set_density_scale.emit(x))
 
         layout1 = QHBoxLayout(self.label_group)
         self.label_z_min = QLabel('z_min', self)
@@ -52,3 +59,5 @@ class BotPanel(QWidget):
 
         self.sld1.setValue((p.height_1 - z_min) / (z_max - z_min) * 100)
         self.sld2.setValue((p.height_2 - z_min) / (z_max - z_min) * 100)
+
+        self.density_sld.setValue(p.density_scale)

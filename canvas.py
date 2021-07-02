@@ -1,5 +1,5 @@
 from PyQt5.QtWidgets import QFrame
-from PyQt5.QtGui import QPolygonF
+from PyQt5.QtGui import QPolygonF, QImage, QPixmap
 from PyQt5.QtGui import QBrush, QPainter, QColor, QPen
 from PyQt5.QtCore import Qt, pyqtSignal, QPointF
 import numpy as np
@@ -50,15 +50,7 @@ class Canvas(QFrame):
     def __init__(self, parent):
         super().__init__(parent)
 
-    def paintEvent(self, event):
-        # draw_debug_box(self, diag=False)
-        painter = QPainter(self)
-        painter.setRenderHint(QPainter.Antialiasing)
-        painter.setRenderHint(QPainter.HighQualityAntialiasing)
-        p = self.parent()
-        paint_text_style(painter, QColor(0, 0, 0))
-        painter.drawText(20, 20, p.files[p.file_idx])
-
+    def draw_slice(self, p, painter):
         points = p.points
         xy = points[:, [0, 2]]
         z = points[:, 1]
@@ -77,6 +69,51 @@ class Canvas(QFrame):
         uv_2 = uv[mask_2, :]
         painter.drawPoints(QPolygonF(convert_qpointf(uv_2)))
 
+    def draw_density(self, p, painter):
+        width = self.frameGeometry().width()
+        height = self.frameGeometry().height()
+
+        points = p.points
+        xy = points[:, [0, 2]]
+        center = np.mean(xy, axis=0)
+        uv = xy_to_uv(xy, center, p.rotate, p.trans_x, p.trans_y, p.zoom)
+
+        mask = (uv[:, 0] >= 0) & (uv[:, 0] < width) & (uv[:, 1] >= 0) & (uv[:, 1] < height)
+        if mask.sum() == 0:
+            return
+        uv = uv[mask, :].astype(np.int32)
+        coords = uv[:, 0] + uv[:, 1] * width
+
+        density = np.bincount(coords, minlength=height * width)
+        density = density.reshape(height, width) * p.density_scale
+        density = np.stack([density, density, density], axis=-1)
+        density = np.clip(np.round(density), 0, 255).astype(np.uint8)
+
+        # numpy array to pyqt image
+        qimage = QImage(density.data, width, height, QImage.Format_RGB888)
+        painter.drawPixmap(self.rect(), QPixmap(qimage))
+
+    def paintEvent(self, event):
+        # draw_debug_box(self, diag=False)
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.Antialiasing)
+        painter.setRenderHint(QPainter.HighQualityAntialiasing)
+        p = self.parent()
+
+        if p.canvas_mode == 'DENSITY':
+            self.draw_density(p, painter)
+            paint_text_style(painter, QColor(255, 255, 255))
+            painter.drawText(20, 20, p.files[p.file_idx])
+        elif p.canvas_mode == 'SLICE':
+            self.draw_slice(p, painter)
+            paint_text_style(painter, QColor(0, 0, 0))
+            painter.drawText(20, 20, p.files[p.file_idx])
+        else:
+            raise NotImplementedError
+
+        points = p.points
+        xy = points[:, [0, 2]]
+        center = np.mean(xy, axis=0)
         # Draw current labeling corners
         if len(p.cur_corners) > 0:
             xy_corners = np.stack(p.cur_corners)
