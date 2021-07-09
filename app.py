@@ -14,8 +14,8 @@ from utils import get_random_color
 
 
 class MainWindow(QMainWindow):
-    CANVAS_HEIGHT = 300
-    CANVAS_WIDTH = 600
+    CANVAS_HEIGHT = 600
+    CANVAS_WIDTH = 1200
     BOTPANEL_HEIGHT = 180
     BOTPANEL_WIDTH = 600
     LABELPANEL_HEIGHT = 300
@@ -26,13 +26,13 @@ class MainWindow(QMainWindow):
     HEIGHT_ADJUST_SIZE = 0.1
     ROTATE_STEP = np.pi / 72
     DEFAULT_CANVAS_MODE = 'DENSITY'
-    DEFAULT_DENSITY_SCALE = 10
+    DEFAULT_DENSITY_SCALE = 80
 
     SAME_CORNER_DIST = 1
 
     def __init__(self, basedir, outdir):
         super().__init__()
-        self.setGeometry(0, 0, 800, 500)
+        self.setGeometry(0, 0, 1400, 800)
         self.setWindowTitle('Floorplan Labeler')
 
         self.canvas = Canvas(self)
@@ -55,20 +55,20 @@ class MainWindow(QMainWindow):
         self.canvas_mode = self.DEFAULT_CANVAS_MODE
         self.canvas_mode_btn = QPushButton(f'mod: {self.canvas_mode}', self)
         self.canvas_mode_btn.clicked.connect(self.toggle_canvas_mode)
-        self.canvas_mode_btn.move(650, 320)
+        self.canvas_mode_btn.move(1050, 400)
 
         self.label_mode = 'room'        # or 'axis'
         self.label_mode_btn = QPushButton(f'mod: {self.label_mode}', self)
         self.label_mode_btn.clicked.connect(self.toggle_label_mode)
-        self.label_mode_btn.move(650, 360)
+        self.label_mode_btn.move(1050, 440)
 
         self.save_btn = QPushButton('save', self)
-        self.save_btn.move(650, 400)
+        self.save_btn.move(1050, 480)
         self.save_btn.clicked.connect(self.save_result)
 
         self.reset_btn = QPushButton('reset all', self)
         self.reset_btn.clicked.connect(self.reset_scene)
-        self.reset_btn.move(650, 440)
+        self.reset_btn.move(1050, 520)
 
         self.basedir = basedir
         self.outdir = outdir
@@ -283,7 +283,6 @@ class MainWindow(QMainWindow):
 
         axis_corners = d['axis_corners']
         axis_corners = [np.array([float(x[0]), float(x[1])]) for x in axis_corners]
-        assert len(axis_corners) == 2
         self.axis_corners = axis_corners
         self.canvas.update()
 
