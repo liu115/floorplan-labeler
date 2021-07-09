@@ -1,10 +1,25 @@
 # Floorplan labeling tool
 
-## Requirements
-* python >= 3.7
-* PyQt5
-* numpy
-* plyfile
+## How to install
+
+1. We recommand you to use [Anaconda](https://www.anaconda.com/products/individual) to create the environment. Then, you can setup the environnment with:
+    ```
+    conda env create -n floorplan_label
+    ```
+
+    And directly run to install the packages.
+    ```
+    pip install  -r requirement.txt
+    ```
+
+    #### Requirements
+    * python >= 3.7
+    * PyQt5
+    * numpy
+    * plyfile
+
+2. Please install MeshLab for further visualization. You can find the install package [here](https://www.meshlab.net/#download).
+
 
 ## How to run and use?
 ```
