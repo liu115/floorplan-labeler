@@ -14,11 +14,11 @@ from utils import get_random_color
 
 
 class MainWindow(QMainWindow):
-    CANVAS_HEIGHT = 300
-    CANVAS_WIDTH = 600
+    CANVAS_HEIGHT = 750
+    CANVAS_WIDTH = 1200
     BOTPANEL_HEIGHT = 180
     BOTPANEL_WIDTH = 600
-    LABELPANEL_HEIGHT = 300
+    LABELPANEL_HEIGHT = 750
     LABELPANEL_WIDTH = 180
 
     INITIAL_THICKNESS = 0.2
@@ -26,13 +26,13 @@ class MainWindow(QMainWindow):
     HEIGHT_ADJUST_SIZE = 0.1
     ROTATE_STEP = np.pi / 72
     DEFAULT_CANVAS_MODE = 'DENSITY'
-    DEFAULT_DENSITY_SCALE = 10
+    DEFAULT_DENSITY_SCALE = 25
 
     SAME_CORNER_DIST = 1
 
     def __init__(self, basedir, outdir):
         super().__init__()
-        self.setGeometry(0, 0, 800, 500)
+        self.setGeometry(0, 0, 1400, 900)
         self.setWindowTitle('Floorplan Labeler')
 
         self.canvas = Canvas(self)
@@ -55,20 +55,20 @@ class MainWindow(QMainWindow):
         self.canvas_mode = self.DEFAULT_CANVAS_MODE
         self.canvas_mode_btn = QPushButton(f'mod: {self.canvas_mode}', self)
         self.canvas_mode_btn.clicked.connect(self.toggle_canvas_mode)
-        self.canvas_mode_btn.move(650, 320)
+        self.canvas_mode_btn.setGeometry(self.CANVAS_WIDTH + 20, self.CANVAS_HEIGHT, 130, 30)
 
         self.label_mode = 'room'        # or 'axis'
         self.label_mode_btn = QPushButton(f'mod: {self.label_mode}', self)
         self.label_mode_btn.clicked.connect(self.toggle_label_mode)
-        self.label_mode_btn.move(650, 360)
+        self.label_mode_btn.setGeometry(self.CANVAS_WIDTH + 20, self.CANVAS_HEIGHT + 30, 130, 30)
 
         self.save_btn = QPushButton('save', self)
-        self.save_btn.move(650, 400)
+        self.save_btn.setGeometry(self.CANVAS_WIDTH + 20, self.CANVAS_HEIGHT + 60, 130, 30)
         self.save_btn.clicked.connect(self.save_result)
 
         self.reset_btn = QPushButton('reset all', self)
         self.reset_btn.clicked.connect(self.reset_scene)
-        self.reset_btn.move(650, 440)
+        self.reset_btn.setGeometry(self.CANVAS_WIDTH + 20, self.CANVAS_HEIGHT + 90, 130, 30)
 
         self.basedir = basedir
         self.outdir = outdir
@@ -131,13 +131,13 @@ class MainWindow(QMainWindow):
         value_changed = True
         SHIFT_UNIT = 0.3
         if key == Qt.Key_Q:
-            self.rotate -= self.ROTATE_STEP
-        elif key == Qt.Key_E:
             self.rotate += self.ROTATE_STEP
+        elif key == Qt.Key_E:
+            self.rotate -= self.ROTATE_STEP
         elif key == Qt.Key_W:
-            self.trans_y -= SHIFT_UNIT * self.zoom
-        elif key == Qt.Key_S:
             self.trans_y += SHIFT_UNIT * self.zoom
+        elif key == Qt.Key_S:
+            self.trans_y -= SHIFT_UNIT * self.zoom
         elif key == Qt.Key_A:
             self.trans_x -= SHIFT_UNIT * self.zoom
         elif key == Qt.Key_D:
@@ -187,7 +187,7 @@ class MainWindow(QMainWindow):
     def add_point(self, u, v):
         uv = np.array([u, v])
         center = np.mean(self.points[:, [0, 2]], axis=0)
-        xy = uv_to_xy(uv, center, self.rotate, self.trans_x, self.trans_y, self.zoom)
+        xy = uv_to_xy(uv, center, self.rotate, self.trans_x, self.trans_y, self.zoom, self.CANVAS_HEIGHT, self.CANVAS_WIDTH)
         self.is_dirty = True
         if self.label_mode == 'room':
             # Add new room label if click previous point and has at least 3 points
@@ -254,6 +254,16 @@ class MainWindow(QMainWindow):
         self.botpanel.update()
 
     def save_result(self):
+        if len(self.axis_corners) == 0:
+            # No axis corner labeled
+            QMessageBox.about(self, 'Error', 'Missing axis aligned corner. Fail to save.')
+            return
+
+        if len(self.room_corner_list) == 0:
+            # No axis corner labeled
+            QMessageBox.about(self, 'Error', 'No room annotation. Fail to save.')
+            return
+
         file_name = self.files[self.file_idx]
         file_name = os.path.basename(file_name).replace('.ply', '.json')
         file_name = os.path.join(self.outdir, file_name)
@@ -270,6 +280,7 @@ class MainWindow(QMainWindow):
                 'room_corners': room_corners,
                 'axis_corners': axis_corners,
             }, f)
+        QMessageBox.about(self, '', f'Saved {file_name}')
         self.is_dirty = False
 
     def read_result(self, fn):

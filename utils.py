@@ -3,6 +3,7 @@ import numpy as np
 from plyfile import PlyData
 from PyQt5.QtGui import QPainter, QColor, QPen
 
+
 def extend_array_to_homogeneous(array):
     """
     Returns the homogeneous form of a vector by attaching
@@ -23,7 +24,6 @@ def extend_array_to_homogeneous(array):
         array = array.T
         dim, samples = array.shape
         return np.vstack((array, np.ones((1, samples)))).T
-
 
 
 def draw_debug_box(qtobj, diag=True):
@@ -57,19 +57,28 @@ def rotate_xy(xy, theta):
     return np.dot(xy, m)
 
 
-def xy_to_uv(xy, center, rotate, trans_x, trans_y, zoom):
+def xy_to_uv(xy, center, rotate, trans_x, trans_y, zoom, height, width):
     '''
         xy: point cloud coordinate (N x 2)
     '''
     xy = rotate_xy(xy - center, rotate) + center
     uv = xy * zoom + np.array([trans_x, trans_y])
+    if len(uv.shape) == 1:
+        uv[1] = height - uv[1]
+    else:
+        uv[:, 1] = height - uv[:, 1]
     return uv
 
 
-def uv_to_xy(uv, center, rotate, trans_x, trans_y, zoom):
+def uv_to_xy(uv, center, rotate, trans_x, trans_y, zoom, height, width):
     '''
         uv: coordinate on canvas (N x 2)
     '''
+    uv = uv.copy()
+    if len(uv.shape) == 1:
+        uv[1] = height - uv[1]
+    else:
+        uv[:, 1] = height - uv[:, 1]
     xy = (uv - np.array([trans_x, trans_y])) / zoom
     xy = rotate_xy(xy - center, -rotate) + center
     return xy

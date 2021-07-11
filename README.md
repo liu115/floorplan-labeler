@@ -5,6 +5,7 @@
 * PyQt5
 * numpy
 * plyfile
+* opencv-python
 
 ## How to run and use?
 ```

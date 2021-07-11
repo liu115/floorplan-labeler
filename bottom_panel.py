@@ -14,12 +14,12 @@ class BotPanel(QWidget):
         self.label_group = QWidget(self)
         self.label_group.setGeometry(0, 0, 600, 50)
         self.height_sld_group = QWidget(self)
-        self.height_sld_group.setGeometry(0, 0, 600, 100)
+        self.height_sld_group.setGeometry(0, 0, 600, 80)
 
         self.density_label = QLabel('density scale:', self)
-        self.density_label.move(10, 150)
+        self.density_label.move(10, 100)
         self.density_sld = QSlider(Qt.Horizontal, self)
-        self.density_sld.move(120, 150)
+        self.density_sld.move(120, 100)
         self.density_sld.valueChanged.connect(lambda x: self.sig_set_density_scale.emit(x))
 
         layout1 = QHBoxLayout(self.label_group)

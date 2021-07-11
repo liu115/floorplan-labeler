@@ -27,7 +27,7 @@ class LabelPanel(QWidget):
             self.sig_delete_room.emit(id)
             self.list_view.takeItem(self.list_view.row(items[0]))
             self.list_view.setCurrentIndex(QModelIndex())
-    
+
     def clear(self):
         self.list_view.clear()
 

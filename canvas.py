@@ -3,6 +3,7 @@ from PyQt5.QtGui import QPolygonF, QImage, QPixmap
 from PyQt5.QtGui import QBrush, QPainter, QColor, QPen
 from PyQt5.QtCore import Qt, pyqtSignal, QPointF
 import numpy as np
+import cv2
 
 from utils import xy_to_uv
 
@@ -51,11 +52,14 @@ class Canvas(QFrame):
         super().__init__(parent)
 
     def draw_slice(self, p, painter):
+        width = self.frameGeometry().width()
+        height = self.frameGeometry().height()
+
         points = p.points
         xy = points[:, [0, 2]]
         z = points[:, 1]
         center = np.mean(xy, axis=0)
-        uv = xy_to_uv(xy, center, p.rotate, p.trans_x, p.trans_y, p.zoom)
+        uv = xy_to_uv(xy, center, p.rotate, p.trans_x, p.trans_y, p.zoom, height, width)
 
         # Draw layer 1
         paint_point_style(painter, QColor(0, 255, 0, 127))
@@ -76,7 +80,7 @@ class Canvas(QFrame):
         points = p.points
         xy = points[:, [0, 2]]
         center = np.mean(xy, axis=0)
-        uv = xy_to_uv(xy, center, p.rotate, p.trans_x, p.trans_y, p.zoom)
+        uv = xy_to_uv(xy, center, p.rotate, p.trans_x, p.trans_y, p.zoom, height, width)
 
         mask = (uv[:, 0] >= 0) & (uv[:, 0] < width) & (uv[:, 1] >= 0) & (uv[:, 1] < height)
         if mask.sum() == 0:
@@ -85,9 +89,10 @@ class Canvas(QFrame):
         coords = uv[:, 0] + uv[:, 1] * width
 
         density = np.bincount(coords, minlength=height * width)
-        density = density.reshape(height, width) * p.density_scale
+        density = density.reshape(height, width) * p.density_scale * 4
         density = np.stack([density, density, density], axis=-1)
         density = np.clip(np.round(density), 0, 255).astype(np.uint8)
+        density = cv2.GaussianBlur(density, (3, 3), 0.5)
 
         # numpy array to pyqt image
         qimage = QImage(density.data, width, height, QImage.Format_RGB888)
@@ -95,6 +100,8 @@ class Canvas(QFrame):
 
     def paintEvent(self, event):
         # draw_debug_box(self, diag=False)
+        width = self.frameGeometry().width()
+        height = self.frameGeometry().height()
         painter = QPainter(self)
         painter.setRenderHint(QPainter.Antialiasing)
         painter.setRenderHint(QPainter.HighQualityAntialiasing)
@@ -117,7 +124,7 @@ class Canvas(QFrame):
         # Draw current labeling corners
         if len(p.cur_corners) > 0:
             xy_corners = np.stack(p.cur_corners)
-            uv_corners = xy_to_uv(xy_corners, center, p.rotate, p.trans_x, p.trans_y, p.zoom)
+            uv_corners = xy_to_uv(xy_corners, center, p.rotate, p.trans_x, p.trans_y, p.zoom, height, width)
 
             for i in range(uv_corners.shape[0]):
                 paint_corner_style(painter, QColor(0, 0, 255, 255))
@@ -133,7 +140,7 @@ class Canvas(QFrame):
             color = p.room_color_list[i]
             paint_room_style(painter, color)
             xy_corners = np.stack(room_corners)
-            uv_corners = xy_to_uv(xy_corners, center, p.rotate, p.trans_x, p.trans_y, p.zoom)
+            uv_corners = xy_to_uv(xy_corners, center, p.rotate, p.trans_x, p.trans_y, p.zoom, height, width)
             painter.drawPolygon(QPolygonF(convert_qpointf(uv_corners)))
             paint_corner_style(painter, color)
             painter.drawPoints(QPolygonF(convert_qpointf(uv_corners)))
@@ -141,7 +148,7 @@ class Canvas(QFrame):
         # Dras axis
         if len(p.axis_corners) == 2:
             axis_corners = np.stack(p.axis_corners)
-            uv_corners = xy_to_uv(axis_corners, center, p.rotate, p.trans_x, p.trans_y, p.zoom)
+            uv_corners = xy_to_uv(axis_corners, center, p.rotate, p.trans_x, p.trans_y, p.zoom, height, width)
             paint_corner_style(painter, QColor(0, 255, 255, 255))
             point1 = QPointF(uv_corners[0, 0], uv_corners[0, 1])
             painter.drawPoint(point1)
