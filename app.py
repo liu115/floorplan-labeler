@@ -294,7 +294,6 @@ class MainWindow(QMainWindow):
 
         axis_corners = d['axis_corners']
         axis_corners = [np.array([float(x[0]), float(x[1])]) for x in axis_corners]
-        assert len(axis_corners) == 2
         self.axis_corners = axis_corners
         self.canvas.update()
 
